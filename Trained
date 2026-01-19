@@ -1,0 +1,64 @@
+import tensorflow as tf                     #used to build and train the CNN
+from tensorflow.keras import layers, models  #create CNN layers and model
+from tqdm import tqdm                       #tqdm → shows training progress bar
+
+IMG_SIZE = (128, 128)
+BATCH_SIZE = 16
+EPOCHS = 5                    #model trains 5 times on full dataset
+DATASET_PATH = "dataset"      #folder containing class subfolders
+
+# Load dataset
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    DATASET_PATH,             #Loads images from folders  Images resized automatically
+    validation_split=0.2,
+    subset="training",
+    seed=42,
+    image_size=IMG_SIZE,
+    batch_size=BATCH_SIZE
+)
+
+val_ds = tf.keras.utils.image_dataset_from_directory(
+    DATASET_PATH,                      #Used to check model performance
+    validation_split=0.2,
+    subset="validation",
+    seed=42,
+    image_size=IMG_SIZE,
+    batch_size=BATCH_SIZE
+)
+
+class_names = train_ds.class_names      #Reads folder names
+print("Classes:", class_names)
+
+# Normalize       Helps model learn faster and better
+train_ds = train_ds.map(lambda x, y: (x / 255.0, y))
+val_ds = val_ds.map(lambda x, y: (x / 255.0, y))
+
+# CNN Model
+model = models.Sequential([
+    layers.Conv2D(32, 3, activation='relu', input_shape=(128,128,3)),
+    layers.MaxPooling2D(),
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(len(class_names), activation='softmax')
+])
+#Conv2D → extracts features (edges, spots)
+#ReLU → removes negative values
+#MaxPooling → reduces image size
+
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy', #efficent training
+    metrics=['accuracy']
+)
+
+# Training with tqdm          #tqdm shows batch progress
+for epoch in range(EPOCHS):
+    print(f"\nEpoch {epoch+1}/{EPOCHS}")
+    for images, labels in tqdm(train_ds):
+        model.train_on_batch(images, labels)
+
+# Save model
+model.save("leaf_disease_model.h5")
+print("✅ Model saved")                 #Used later for prediction & detection
